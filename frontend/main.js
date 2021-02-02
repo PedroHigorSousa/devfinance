@@ -12,23 +12,18 @@ const Modal = {
     }
 }
 
+const Storage = {
+    get() {
+        return JSON.parse(localStorage.getItem('dev.finances:transactions')) || []
+    },
+
+    set(transactions) {
+        localStorage.setItem('dev.finances:transactions', JSON.stringify(transactions))
+    }
+}
+
 const Transaction = {
-    all: [
-        {
-            description: 'Luz',
-            amount: -50000,
-            date: '23/01/2021'
-        },
-        {
-            description: 'Criação website',
-            amount: 500000,
-            date: '23/01/2021'
-        },
-        {
-            description: 'Internet',
-            amount: -20000,
-            date: '23/01/2021'
-        }],
+    all: Storage.get(),
     add(transaction) {
         Transaction.all.push(transaction)
 
@@ -69,17 +64,16 @@ const DOM = {
     transactionsContainer: document.querySelector('#data-table tbody'),
 
     addTransaction(transaction, index) {
-        // Cria uma nova tag 'tr' vazia
         const tr = document.createElement('tr')
 
-        // Recebe o conteúdo html do método presente no objeto DOM
-        tr.innerHTML = DOM.innerHTMLTransation(transaction)
+        tr.innerHTML = DOM.innerHTMLTransation(transaction, index)
+        tr.dataset.index = index
 
         DOM.transactionsContainer.appendChild(tr)
 
     },
 
-    innerHTMLTransation(transaction) {
+    innerHTMLTransation(transaction, index) {
 
         const cssClasses = transaction.amount > 0 ? 'income' : 'expense'
 
@@ -92,7 +86,7 @@ const DOM = {
                     <td class="${cssClasses}">${amount}</td>
                     <td class="date">${transaction.date}</td>
                         <td>
-                            <img src="./assets/minus.svg" alt="Remover transação">
+                            <img onclick="Transaction.remove(${index})" src="./assets/minus.svg" alt="Remover transação">
                     </td>
                 </tr>
                 
@@ -118,6 +112,15 @@ const DOM = {
 }
 
 const Utils = {
+    formatAmount(value) {
+        value = Number(value.replace(/\,\./g, '')) * 100
+
+        return value
+    },
+    formatDate(date) {
+        const splitedDate = date.split('-')
+        return `${splitedDate[2]}/${splitedDate[1]}/${splitedDate[0]}`
+    },
     formatCurrency(value) {
         const signal = Number(value) < 0 ? '-' : ''
 
@@ -131,11 +134,7 @@ const Utils = {
         })
 
         return signal + value
-    },
-    formatAmount(value) {
-
     }
-
 }
 
 const Form = {
@@ -166,13 +165,36 @@ const Form = {
 
         amount = Utils.formatAmount(amount)
 
+        date = Utils.formatDate(date)
+
+        return {
+            description,
+            amount,
+            date
+        }
+    },
+    saveTransaction(transaction) {
+        Transaction.add(transaction)
+    },
+    clearFields() {
+        Form.description.value = ''
+        Form.amount.value = ''
+        Form.date.value = ''
     },
     submit(event) {
         event.preventDefault()
 
         try {
             Form.validateFields()
-            Form.formatValues()
+
+            const transaction = Form.formatValues()
+
+            Form.saveTransaction(transaction)
+
+            Form.clearFields()
+
+            Modal.close()
+
         } catch (error) {
             alert(error.message)
         }
@@ -181,11 +203,11 @@ const Form = {
 
 const App = {
     init() {
-        Transaction.all.forEach(transaction => {
-            DOM.addTransaction(transaction)
-        })
+        Transaction.all.forEach(DOM.addTransaction)
 
         DOM.updateBalance()
+
+        Storage.set(Transaction.all);
     },
     reload() {
         DOM.clearTransactions()
@@ -194,11 +216,5 @@ const App = {
 }
 
 App.init()
-
-Transaction.add({
-    description: 'Sabre de luz',
-    amount: 400,
-    date: '31/02/2080'
-})
 
 Transaction.remove(0)
